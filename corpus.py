@@ -11,7 +11,7 @@ os.makedirs("corpus",exist_ok=True)
 
 for i, topic in enumerate(topics):
 	print(f"Document {i} on topic: {topic}")
-	response=llm.invoke(f"Write 500 words on {topic}. Ensure the presence of Named entities for Named entity recognition.")
+	response=llm.invoke(f"Write a structured, factual yet concise 500 word article on {topic}.Ensure a rich variety of named entities such as people, comapnies/organisations/ locations/dates. Write in clear sentences and avoid overly complex phrases. The article should be informative and can be used for training a named entity recognition model.")
 	with open(f"corpus/doc_{i+1}.txt","w") as f:
 		f.write(response)
 

@@ -62,3 +62,12 @@ plt.xlabel('# named entities')
 plt.ylabel('Document')
 plt.savefig('images/entity_count_distribution.png')
 plt.show()
+
+#TF-IDF 
+vectoriser = TfidfVectrozer(stop_words='english',ngram_range = (1,2),max_features =5000, min_df=2,max_df=0.8,norm = "l2")
+
+#apply to corpus and transform into tf-idf matrix
+tfidf_matrix = vectoriser.fit_transform(documents)
+feature_names= vectoriser.get_feature_names_out()
+
+print('tf-idf matrix shape:',tfidf_matrix.shape)

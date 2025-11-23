@@ -4,7 +4,7 @@ import os
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
-
+from wordcloud import WordCloud
 nlp=  spacy.load("en_core_web_sm")
 
 corpus_directory = 'corpus'
@@ -75,3 +75,14 @@ tfidf_matrix = vectoriser.fit_transform(documents)
 feature_names= vectoriser.get_feature_names_out()
 
 print('tf-idf matrix shape:',tfidf_matrix.shape)
+
+word_scores = tfidf_matrix.sum(axis=0).A1
+word_dict = dict(zip(feature_names,word_scores))
+
+wordcloud =  WordCloud(width=1000,height=500,background_color ='white')
+wordcloud.generate_from_frequencies(word_dict)
+
+plt.figure(figsize=(10,5))
+plt.imshow(wordcloud,interpolation='bilinear')
+plt.axis('off')
+plt.savefig('images/wordcloud.png')

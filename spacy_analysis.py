@@ -5,6 +5,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
 from wordcloud import WordCloud
+import csv
 nlp=  spacy.load("en_core_web_sm")
 
 corpus_directory = 'corpus'
@@ -86,3 +87,15 @@ plt.figure(figsize=(10,5))
 plt.imshow(wordcloud,interpolation='bilinear')
 plt.axis('off')
 plt.savefig('images/wordcloud.png')
+
+def term_per_document(tfidf_matrix,feature_names, top_n_terms=5, filename='terms_per_doc.csv'):
+	with open(filename,"w", newline="") as f:
+		writer =csv.writer(f)
+		writer.writerow(['Document','Term','Score'])	
+		for document_id in range(tfidf_matrix.shape[0]):
+			row = tfidf_matrix[document_id].toarray().flatten()
+			top_id = row. argsort()[::-1][:top_n_terms]
+			for i in  top_id:
+				if row[i] > 0:														
+					writer.writerow([document_id+1,feature_names[i],round(row[i],3)])
+term_per_document(tfidf_matrix,feature_names,top_n_terms=5)

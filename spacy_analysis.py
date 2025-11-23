@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import seaborn as sns
 import matplotlib.pyplot as plt
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 nlp=  spacy.load("en_core_web_sm")
 
@@ -39,6 +40,7 @@ label_counts.columns =['entity_label','count']
 sns.barplot(data=label_counts, x = 'entity_label',y='count')
 plt.title("Label Distribution")
 plt.xlabel('Label')
+plt.xticks(rotation=90)
 plt.ylabel('Count')
 plt.show()
 plt.savefig("images/entity_label_counts.png")
@@ -50,6 +52,7 @@ sns.barplot(data=text_counts,x='entity_text',y='counts')
 plt.title('Text Distribution')
 plt.xlabel('Text')
 plt.ylabel('Count')
+plt.xticks(rotation=90)
 plt.show()
 plt.savefig('images/entity_text_counts.png')
 
@@ -60,11 +63,12 @@ sns.histplot(data=entities_count , x = 'entity_count',bins=10,kde=True)
 plt.title('Distribution of Named Entities per document')
 plt.xlabel('# named entities')
 plt.ylabel('Document')
+plt.xticks(rotation = 90)
 plt.savefig('images/entity_count_distribution.png')
 plt.show()
 
 #TF-IDF 
-vectoriser = TfidfVectrozer(stop_words='english',ngram_range = (1,2),max_features =5000, min_df=2,max_df=0.8,norm = "l2")
+vectoriser = TfidfVectorizer(stop_words='english',ngram_range = (1,2),max_features =5000, min_df=2,max_df=0.8,norm = "l2")
 
 #apply to corpus and transform into tf-idf matrix
 tfidf_matrix = vectoriser.fit_transform(documents)

@@ -1,10 +1,14 @@
 import spacy
+import numpy as np
 import pandas as pd
 import os
 import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from wordcloud import WordCloud
+import csv
+
 nlp=  spacy.load("en_core_web_sm")
 
 corpus_directory = 'corpus'
@@ -29,23 +33,54 @@ feature_names= vectoriser.get_feature_names_out()
 
 print('tf-idf matrix shape:',tfidf_matrix.shape)
 
-word_scores = tfidf_matrix.sum(axis=0).A1
-word_dict = dict(zip(feature_names,word_scores))
+bag_words = CountVectorizer()
+bg_matrix = bag_words.fit_transform(documents)
 
-wordcloud =  WordCloud(width=1000,height=500,background_color ='white')
-wordcloud.generate_from_frequencies(word_dict)
 
-plt.figure(figsize=(10,5))
-plt.imshow(wordcloud,interpolation='bilinear')
-plt.axis('off')
-plt.savefig('images/wordcloud.png')
+embeddings = np.array([nlp(doc).vector for doc in documents])
 
-def term_per_document(tfidf_matrix,feature_names, top_n_terms=5, filename='terms_per_doc.csv'):
-	with open(filename,"w", newline="") as f:
-		for document_id in range(tfidf_matrix.shape[0]):
-			row = tfidf_matrix[document_id].toarray().flatten()
-			top_id = row. argsort()[::-1][:top_n_terms]
-			for i in  top_id:
-				if row[i] > 0:														
-					writer.writerow([document_id+1,feature_names[i],round(row[i],3)])
-term_per_document(tfidf_matrix,feature_names,top_n_terms=5)
+def sim_search(query,corpus):
+	results = {}
+	q_tfidf = vectoriser.transform([query])
+	similarities_count = cosine_similarity(q_tfidf, tfidf_matrix).flatten()
+	results['tfidf'] = {'Most Similar': corpus[np.argmax(similarities_count)],
+			    'Least Similar': corpus[np.argmin(similarities_count)],
+			     'Scores': similarities_count}
+
+	q_count =  bag_words .transform([query])
+	similarities_count = cosine_similarity(q_count,bg_matrix).flatten()
+	results['count'] = {
+			'Most Similar' : corpus[np.argmax(similarities_count)],
+			'Least Similar' : corpus[np.argmin(similarities_count)],
+			'Scores' : similarities_count}
+
+	q_embed = nlp(query).vector.reshape(1,-1)
+	similarities_embed = cosine_similarity(q_embed,embeddings).flatten()
+	results['embeddings'] = {'Most Similar' : corpus[np.argmax(similarities_embed)],
+				'Least Similar' : corpus[np.argmin(similarities_embed)],
+				'Scores' : similarities_embed
+ } 
+		
+	return results
+
+def csv_output(query,output):
+	rows = []
+	for type, result in output.items():
+		rows.append({'Query':query, "Method type": type,
+		"Most Similar" : result["Most Similar"], "Least Similar": result["Least Similar"],
+		"Scores": result["Scores"].tolist()})
+	return pd.DataFrame(rows)
+
+
+queries =  ['The cat sat on the mat']
+dfs=[]
+
+for query in queries:
+	output =  sim_search(query,documents)
+	df = csv_output(query,output)
+	dfs.append(df)
+
+final_df = pd.concat(dfs,ignore_index = True)
+final_df.to_csv('files/similarity_search_api_results.csv',index=False)
+print(final_df)
+

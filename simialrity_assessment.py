@@ -72,7 +72,7 @@ def csv_output(query,output):
 	return pd.DataFrame(rows)
 
 
-queries =  ['The cat sat on the mat']
+queries =  ['The cat sat on the mat','World politics is becoming increasingly more unstable','Easter Rising occured in Dublin, Ireland','There are many uses for AI in the workplace, and it is increasingly likely that Agentic AI integration may lead to further job losses',"Some claim that the costs of living in Ireland are increasing at a far more rapid pace than salaries" ]
 dfs=[]
 
 for query in queries:

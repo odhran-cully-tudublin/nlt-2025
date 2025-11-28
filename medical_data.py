@@ -1,6 +1,7 @@
 import  pandas as pd
+import re
 import spacy
-from langchain_community.llms import Ollama
+from langchain_ollama import OllamaLLM as  Ollama
 patients = pd.read_csv('patients.csv')
 patients.columns=patients.columns.str.lower()
 dictionary = pd.read_csv('index.csv')
@@ -43,12 +44,13 @@ def statistics(feature_name):
 		return stats_string
 	else:
 		return f"{feature_name} is of unsupported dtype {dtype}" 
-def correlations(target= "survival_time_mo"):
+def correlations(df, target= "survival_time_mo"):
 	numeric_cols =  patients.select_dtypes(include=['number'])
-	correlations = numeric_cols.corr()
-	correlations = correlations[target].drop(target).sort_values(ascending=False)
-	corr_lines = [f"{feature}: {corr}" for feature,corr in correlations.items()]
-	corr_str =  f"Correlation with target variable 'Survival_time_mo' is:"  + "\n".join (corr_lines) 
+	results = []
+	for col in numeric_cols.columns:
+		correlations = numeric_cols[col].corr(numeric_cols[target])
+		results.append( f"Correlation between {col} and  {target} is {correlations}")
+		corr_str = "\n".join (results)
 	return  corr_str
 
 #Rag Prep
@@ -95,11 +97,11 @@ def intent_matching(query):
 	query = query.lower()
 	if "define" in query or "meaning" in query or "definition" in query or "mean" in query:	
 		return  "definition"
-	elif "stat" in query or "distribution" in query or "average" in query or "statistics" in query :
+	elif "stat" in query or "stats" in query or  "distribution" in query or "average" in query or "statistics" in query :
 		return "statistics"
-	elif "compare" in query or "versus" in query:
+	elif "comparison" in query or  "compare" in query or "versus" in query or "vs" in query:
 		return "compare"
-	elif  "predict" in query or "correlate" in query or "correlation" in query:
+	elif "relationship" in query or  "predict" in query or "correlate" in query or "correlation" in query:
 		return "correlation"
 	else:
 		return  "general query"
@@ -113,7 +115,7 @@ def agent_1(query):
 	elif intention == "statistics" and features:
 		agent_context = "\n".join([statistics(feat) for feat in features])
 	elif intention == "correlation":
-		agent_context = correlations()
+		agent_context = correlations(patients)
 	elif intention ==  "compare" and len(features) >= 2:
 		agent_context = statistics(features[0])+ "\n\n" + statistics(features[1])
 	else:
@@ -122,6 +124,50 @@ def agent_1(query):
 	return llm.invoke(f"{query}\n\n . Relevant information is shown below: \n\n {agent_context}")
 
 
+#Run agent with rule  based intent matching 
+#query =  "Define Gender"
+#print(agent_1(query))
 
-query =  "compare smoker_status and family_history"
-print(agent_1(query))
+#Autonomous agent with  own intent matching
+def agent_2(query,patients):
+	decision_prompt=f"""
+			You are an AI agent who's role is to decide which tool to use for a query.
+		Tools available are: 
+		- definition - explain what a feature is
+		- statistics - provide a statistical summary of a feature
+		- compare - use where more than one feature is mentioned 
+		- correlation - find relationships between features
+		- general (only if none of the above apply)
+		Query is: {query}
+		Use the above descriptions to determine the most similar based on the query. Do not add any punctuation, explanation or extra text to your answer."""
+
+	intention = llm.invoke(decision_prompt).strip().lower()
+	valid_tools = ['definition','statistics','compare','correlation','general']
+
+	for word in intention.split():
+		word_clean = re.sub(r'[^a-z]','',word)
+		if word_clean in valid_tools:
+			intention = word_clean
+			break
+		else: 
+			intention ='general'
+	features = extract_features(query,patients)	
+	print(f"LLM defined intention: {intention} with features {features}")
+	if intention == "definition" and features:
+                agent_context = "\n".join([lookup(feat) for feat in features])
+	elif intention == "statistics" and features:
+                agent_context = "\n".join([statistics(feat) for feat in features])
+	elif intention == "correlation":
+                agent_context = correlations(patients)
+	elif intention ==  "compare" and len(features) >= 2:
+                agent_context = statistics(features[0])+ "\n\n" + statistics(features[1])
+	else:
+                agent_context = "No tool found"	
+	final_prompt = f"{query}. \n\nAnswer using the context below. Do not answer without using the provided context. If the provided context does not help, say you do not have an answer. \n\n {agent_context}"
+	print(final_prompt)
+	return llm.invoke(final_prompt)
+
+
+query = input("Enter Query:")
+print(agent_2(query,patients))
+ 

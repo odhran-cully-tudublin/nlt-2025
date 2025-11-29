@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
 from wordcloud import WordCloud
 import csv
+
 #load up the spacy model
 nlp=  spacy.load("en_core_web_sm")
 

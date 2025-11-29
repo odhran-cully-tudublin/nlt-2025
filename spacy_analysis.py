@@ -6,8 +6,10 @@ import matplotlib.pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
 from wordcloud import WordCloud
 import csv
+#load up the spacy model
 nlp=  spacy.load("en_core_web_sm")
 
+#initialisation
 corpus_directory = 'corpus'
 documents = []
 files = []
@@ -35,6 +37,8 @@ for i, document_text  in enumerate(documents):
 				'entity_label':entity_label})
 
 #descriptive analytics
+
+#label chart
 df = pd.DataFrame(entities)
 label_counts = df.entity_label.value_counts().reset_index() # was series, need df
 label_counts.columns =['entity_label','count'] 
@@ -43,10 +47,9 @@ plt.title("Label Distribution")
 plt.xlabel('Label')
 plt.xticks(rotation=90)
 plt.ylabel('Count')
-plt.show()
 plt.savefig("images/entity_label_counts.png")
 
-
+#text chart
 text_counts = df.entity_text.value_counts().reset_index().head(20) # was series, need top 20 df
 text_counts.columns = ['entity_text','counts']
 sns.barplot(data=text_counts,x='entity_text',y='counts')
@@ -54,12 +57,12 @@ plt.title('Text Distribution')
 plt.xlabel('Text')
 plt.ylabel('Count')
 plt.xticks(rotation=90)
-plt.show()
 plt.savefig('images/entity_text_counts.png')
 
+#entitines per file
+plt.figure(3)
 entities_count =  df.filename.value_counts().reset_index() #was series, need df
 entities_count.columns = ['filename','entity_count']
-
 sns.histplot(data=entities_count , x = 'entity_count',bins=10,kde=True)
 plt.title('Distribution of Named Entities per document')
 plt.xlabel('# named entities')
@@ -77,20 +80,24 @@ feature_names= vectoriser.get_feature_names_out()
 
 print('tf-idf matrix shape:',tfidf_matrix.shape)
 
+#generate a wordcloud from the tfidf matrix
 word_scores = tfidf_matrix.sum(axis=0).A1
 word_dict = dict(zip(feature_names,word_scores))
 
 wordcloud =  WordCloud(width=1000,height=500,background_color ='white')
 wordcloud.generate_from_frequencies(word_dict)
 
+#plot wordcloud
 plt.figure(figsize=(10,5))
 plt.imshow(wordcloud,interpolation='bilinear')
 plt.axis('off')
 plt.savefig('images/wordcloud.png')
 
+#function to find the top terms in each document
 def term_per_document(tfidf_matrix,feature_names, top_n_terms=5, filename='terms_per_doc.csv'):
 	with open(filename,"w", newline="") as f:
 		writer =csv.writer(f)
+		#columns - file, the term and the score
 		writer.writerow(['Document','Term','Score'])	
 		for document_id in range(tfidf_matrix.shape[0]):
 			row = tfidf_matrix[document_id].toarray().flatten()

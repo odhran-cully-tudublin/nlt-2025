@@ -12,6 +12,7 @@ patients[cat_cols]= patients[cat_cols].astype("category")
 #print(patients.Survival_Time_mo.value_counts())
 #print(patients.dtypes)
 
+#initial simple llm query
 def llm_query (prompt,context=""):
 	full_prompt = f"User query: {prompt} \n\nContext:\n{context}\n\nAnswer clearly:"
 	response = llm.invoke(full_prompt)
@@ -19,24 +20,30 @@ def llm_query (prompt,context=""):
 
 #Tools
 
+#definition lookup function
 def lookup(feature_name):
-	entry =  dictionary[dictionary['Variable Name'].str.lower() == feature_name]
+	entry =  dictionary[dictionary['Variable Name'].str.lower() == feature_name] #get lowercase  col names
 	if entry.empty:
 		return f"No dictionary entry for {feature_name}"
-	else:
+	else: 
+		#read in the entries in the index 
 		decription = entry.Description.values[0]
 		notes = entry['Data Type / Range / Notes'].values[0]
 		return f"{feature_name}: {decription}: (Notes: {notes})"
 
+#function to  calculate statistics  for categorical or numerical columns 
 def statistics(feature_name):
 	if feature_name not in patients.columns:
 		return f"{feature_name} not in patients dataset" 
 	column = patients[feature_name]
+	#pick out the datatype and  find stats accordingly
 	dtype = column.dtype
+	#numerical column
 	if dtype in ['int64','float64']:	
 		stats = column.describe()
 		stats_string =  f"For {feature_name}- numerical - , count is {stats['count']}, the avg is {stats.mean()}, standard deviation is {stats.std()}, the minimum observed value is {stats.min()}, maximum is {stats.max()} "
 		return stats_string
+	#object/category
 	elif dtype in ['object','category']:
 		stats = column.describe()
 		top_values = column.value_counts().head().to_dict()
@@ -44,9 +51,12 @@ def statistics(feature_name):
 		return stats_string
 	else:
 		return f"{feature_name} is of unsupported dtype {dtype}" 
+
+#calculating numerical correlatins with the target
 def correlations(df, target= "survival_time_mo"):
 	numeric_cols =  patients.select_dtypes(include=['number'])
 	results = []
+	#create a string for each numerical feature that is llm readable and join them all
 	for col in numeric_cols.columns:
 		correlations = numeric_cols[col].corr(numeric_cols[target])
 		results.append( f"Correlation between {col} and  {target} is {correlations}")
@@ -55,11 +65,13 @@ def correlations(df, target= "survival_time_mo"):
 
 #Rag Prep
 
+#rag  context generation
 def prep_context(feature_name):
 	definition = lookup(feature_name)
 	stats = statistics(feature_name)
 	return f"Definition: \n{definition}\n\nStats:\n{stats}"
 
+#ra llm query
 def llm_query_rag(prompt,context=""):
 	full_prompt =  f"{prompt}\n\n Here is some helpful information, do not answer without considering the provided information. If that does not contribute an answer and you do not know the naswer, simply inform me that you do not have enough information. \n {context}"
 
@@ -85,6 +97,7 @@ nlp = spacy.load('en_core_web_sm')
 
 #Agentic Prep
 
+#oull the names of the requested features from the query
 def extract_features(query,patients):
 	doc = nlp(query.lower())
 	features = []
@@ -93,6 +106,7 @@ def extract_features(query,patients):
 			features.append(token.text)
 	return list(set(features))
 
+#pick out the intent and match it to a function
 def intent_matching(query):
 	query = query.lower()
 	if "define" in query or "meaning" in query or "definition" in query or "mean" in query:	
@@ -106,10 +120,12 @@ def intent_matching(query):
 	else:
 		return  "general query"
 
+#call the agent
 def agent_1(query):
 	intention = intent_matching(query)
 	features = extract_features(query,patients)
 	print(f"Intention found: {intention} and features found: {features}")
+	#determine correct function to use	
 	if intention == "definition" and features:
 		agent_context = "\n".join([lookup(feat) for feat in features])
 	elif intention == "statistics" and features:
@@ -130,6 +146,7 @@ def agent_1(query):
 
 #Autonomous agent with  own intent matching
 def agent_2(query,patients):
+	#provide  prompt asking for an intent decision
 	decision_prompt=f"""
 			You are an AI agent who's role is to decide which tool to use for a query.
 		Tools available are: 
@@ -140,10 +157,10 @@ def agent_2(query,patients):
 		- general (only if none of the above apply)
 		Query is: {query}
 		Use the above descriptions to determine the most similar based on the query. Do not add any punctuation, explanation or extra text to your answer."""
-
+	#llm call
 	intention = llm.invoke(decision_prompt).strip().lower()
 	valid_tools = ['definition','statistics','compare','correlation','general']
-
+	#post processing - glean single word if llm response does not respond correctly
 	for word in intention.split():
 		word_clean = re.sub(r'[^a-z]','',word)
 		if word_clean in valid_tools:
@@ -153,6 +170,7 @@ def agent_2(query,patients):
 			intention ='general'
 	features = extract_features(query,patients)	
 	print(f"LLM defined intention: {intention} with features {features}")
+	#choose function
 	if intention == "definition" and features:
                 agent_context = "\n".join([lookup(feat) for feat in features])
 	elif intention == "statistics" and features:
@@ -163,11 +181,12 @@ def agent_2(query,patients):
                 agent_context = statistics(features[0])+ "\n\n" + statistics(features[1])
 	else:
                 agent_context = "No tool found"	
+	#final prompt to get an answer	
 	final_prompt = f"{query}. \n\nAnswer using the context below. Do not answer without using the provided context. If the provided context does not help, say you do not have an answer. \n\n {agent_context}"
 	print(final_prompt)
 	return llm.invoke(final_prompt)
 
-
+#user input to get the query 
 query = input("Enter Query:")
 print(agent_2(query,patients))
  

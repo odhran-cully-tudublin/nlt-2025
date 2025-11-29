@@ -1,14 +1,21 @@
 from langchain_community.llms import Ollama
 import os
 
+#specify the llm being used
 llm =  Ollama(model="gemma:2b")
+
+#create a list  of topics on which to write the documents
+#only choosing 10 because of how slow the document generation process is
 topics = ["The role of AI in HealthCare","The future of transport",
 	"The importance of renewables in the 21st century", "The dangers of social media and companies' ability to overlook them",
 	 "The effects of climate change on migration", "A short summary Irish history and important political figures",
 	 "Write a news article on the rise of right wing extremism", "American political scene",
 	"Cat behaviour and our lack of understanding of them","The growing need for cybersecurity" ]
+#create a directory to contain the documents
 os.makedirs("corpus",exist_ok=True)
 
+#run a loop  to call  the llm to write a document on each topic
+#use enumerate to have an index for labelling the document names
 for i, topic in enumerate(topics):
 	print(f"Document {i} on topic: {topic}")
 	response=llm.invoke(f"Write a structured, factual yet concise 500 word article on {topic}.Ensure a rich variety of named entities such as people, comapnies/organisations/ locations/dates. Write in clear sentences and avoid overly complex phrases. The article should be informative and can be used for training a named entity recognition model.")

@@ -1,0 +1,12 @@
+pip install re
+pip install spacy
+pip install langchain_ollama
+pip install numpy
+pip install os
+pip install seaborn
+pip install matplotlib
+pip install scikit-learn
+pip install wordcloud
+pip install csv
+
+
